@@ -2,6 +2,7 @@ import { playApplause, playFanfare, playSplash, unlockAudio } from './audio';
 import { createGame, resolveThrow, targetIndexFor } from './game';
 import {
   aiLanding,
+  aiSigmaForHitRate,
   buildFlight,
   isHit,
   landingFromSwipe,
@@ -19,10 +20,10 @@ import {
 import { buildLayout } from './scene';
 import type { GameState, Layout, ThrowEvent, Vec2 } from './types';
 
-const AI_ACCURACY = 0.72; // ~72% chance to land in glass
+const AI_HIT_RATE = 0.65; // chance per AI throw to land in the glass
 const AI_MIN_DELAY_MS = 700;
 const AI_MAX_DELAY_MS = 1300;
-const MIN_SWIPE_PX = 40;
+const MIN_SWIPE_PX = 35;
 
 type Phase = 'awaitingPlayer' | 'awaitingAi' | 'throwing' | 'gameOver';
 
@@ -183,8 +184,7 @@ function aiThrow(runtime: Runtime): void {
   const targetIdx = targetIndexFor(state, 'opponent');
   if (targetIdx === null) return;
   const target = layout.glasses[targetIdx];
-  // sigma = (1 - accuracy) * mouthRadius * 1.6 → ~accuracy hit rate
-  const sigma = (1 - AI_ACCURACY) * target.mouthRadius * 1.6;
+  const sigma = aiSigmaForHitRate(target, AI_HIT_RATE);
   const landing = aiLanding(target, sigma);
   const hit = isHit(landing, target);
   startFlight(runtime, 'opponent', landing, hit);

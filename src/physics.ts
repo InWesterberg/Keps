@@ -1,6 +1,16 @@
 import type { Glass, Layout, Side, Vec2 } from './types';
 
-const HIT_TOLERANCE = 0.95;
+// Effective hit area = mouthRadius * HIT_TOLERANCE.
+// >1 means landing slightly outside the rim still counts (forgiving).
+const HIT_TOLERANCE = 1.45;
+
+// Multiplies the player's finger swipe vector to the cap's throw vector,
+// so a comfortable mid-screen swipe is enough to reach the far glass.
+const PLAYER_SWIPE_SCALE = 2.6;
+
+export function effectiveHitRadius(target: Glass): number {
+  return target.mouthRadius * HIT_TOLERANCE;
+}
 
 export function distance(a: Vec2, b: Vec2): number {
   const dx = a.x - b.x;
@@ -9,22 +19,31 @@ export function distance(a: Vec2, b: Vec2): number {
 }
 
 export function isHit(landing: Vec2, target: Glass): boolean {
-  return distance(landing, target.center) <= target.mouthRadius * HIT_TOLERANCE;
+  return distance(landing, target.center) <= effectiveHitRadius(target);
 }
 
 /**
- * Convert a player swipe to a landing point on the tray.
- * The cap travels the same vector the finger swept (1:1), so a swipe whose
- * length matches launch→target distance lands the cap exactly on target.
+ * Player swipe → landing point. Scales the finger vector so a moderate
+ * swipe reaches the far end of the tray.
  */
 export function landingFromSwipe(launch: Vec2, swipe: Vec2): Vec2 {
-  return { x: launch.x + swipe.x, y: launch.y + swipe.y };
+  return {
+    x: launch.x + swipe.x * PLAYER_SWIPE_SCALE,
+    y: launch.y + swipe.y * PLAYER_SWIPE_SCALE,
+  };
 }
 
 /**
- * AI throws towards the target with Gaussian noise around it.
- * sigmaPx controls accuracy (smaller = more accurate).
+ * AI throws towards the target with Gaussian noise sized so the resulting
+ * hit probability matches `hitRate` for the given effective hit radius.
+ *   P(land in disc of radius R) = 1 - exp(-R²/(2σ²))
+ *   σ = R / sqrt(-2·ln(1 - hitRate))
  */
+export function aiSigmaForHitRate(target: Glass, hitRate: number): number {
+  const r = effectiveHitRadius(target);
+  return r / Math.sqrt(-2 * Math.log(1 - hitRate));
+}
+
 export function aiLanding(target: Glass, sigmaPx: number, rand = Math.random): Vec2 {
   return {
     x: target.center.x + gaussian(rand) * sigmaPx,

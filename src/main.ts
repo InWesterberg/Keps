@@ -47,16 +47,26 @@ function init(): void {
   const statusEl = document.getElementById('status')!;
   const restartBtn = document.getElementById('restart') as HTMLButtonElement;
 
-  const sprites: Sprites = { opponentImage: null, opponentImageReady: false };
-  const img = new Image();
-  img.onload = () => {
-    sprites.opponentImage = img;
+  const sprites: Sprites = {
+    opponentImage: null,
+    opponentImageReady: false,
+    capImage: null,
+    capImageReady: false,
+  };
+
+  const opponentImg = new Image();
+  opponentImg.onload = () => {
+    sprites.opponentImage = opponentImg;
     sprites.opponentImageReady = true;
   };
-  img.onerror = () => {
-    // Fallback handled in renderer.
+  opponentImg.src = `${import.meta.env.BASE_URL}opponent.jpg`;
+
+  const capImg = new Image();
+  capImg.onload = () => {
+    sprites.capImage = capImg;
+    sprites.capImageReady = true;
   };
-  img.src = `${import.meta.env.BASE_URL}opponent.jpg`;
+  capImg.src = `${import.meta.env.BASE_URL}cap.png`;
 
   const runtime: Runtime = {
     canvas,
@@ -120,7 +130,7 @@ function render(runtime: Runtime, now: number): void {
   drawGlasses(ctx, layout, state, highlight);
 
   if (runtime.flight) {
-    drawCapInFlight(ctx, runtime.flight, now);
+    drawCapInFlight(ctx, runtime.flight, sprites, now);
   }
 
   drawPlayerHud(ctx, layout, state.losses.player, state);

@@ -30,11 +30,11 @@ export interface Glass {
 export interface Layout {
   width: number;
   height: number;
-  trayTop: number;
-  trayBottom: number;
-  trayCenterX: number;
-  trayWidthTop: number;
-  trayWidthBottom: number;
+  trayCenter: Vec2;
+  /** Horizontal half-axis of the round tray (perspective ellipse). */
+  trayRadiusX: number;
+  /** Vertical half-axis of the round tray. */
+  trayRadiusY: number;
   glasses: Glass[];
   playerLaunch: Vec2;
   opponentLaunch: Vec2;

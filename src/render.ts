@@ -2,20 +2,27 @@ import { flightArc, flightPosition, flightProgress } from './physics';
 import type { FlightAnimation } from './physics';
 import type { GameState, Glass, Layout } from './types';
 
-const TRAY_FILL = '#3a2418';
+const TRAY_FILL_TOP = '#2c1c12';
+const TRAY_FILL_MID = '#3a2418';
+const TRAY_FILL_BOTTOM = '#46291a';
 const TRAY_RIM = '#5b3a25';
-const TRAY_HIGHLIGHT = 'rgba(255, 220, 170, 0.08)';
 const GLASS_RIM = 'rgba(220, 230, 240, 0.95)';
 const GLASS_INSIDE = 'rgba(0, 0, 0, 0.55)';
 const GLASS_BODY = 'rgba(180, 220, 240, 0.18)';
-const CAP_FACE = '#d9c47a';
-const CAP_EDGE = '#7a6230';
 const TARGET_GLOW = 'rgba(224, 192, 104, 0.35)';
 const SHADOW = 'rgba(0, 0, 0, 0.45)';
+
+// Pripps Blå inspired palette.
+const PRIPPS_BLUE_DARK = '#062a6e';
+const PRIPPS_BLUE = '#0c3aa0';
+const PRIPPS_BLUE_LIGHT = '#1f57c8';
+const PRIPPS_WHITE = '#f4f6ff';
 
 export interface Sprites {
   opponentImage: HTMLImageElement | null;
   opponentImageReady: boolean;
+  capImage: HTMLImageElement | null;
+  capImageReady: boolean;
 }
 
 export function clearCanvas(ctx: CanvasRenderingContext2D, layout: Layout): void {
@@ -82,42 +89,27 @@ export function drawOpponent(
 }
 
 export function drawTray(ctx: CanvasRenderingContext2D, layout: Layout): void {
-  const cx = layout.trayCenterX;
-  const wTop = layout.trayWidthTop;
-  const wBot = layout.trayWidthBottom;
-  const yTop = layout.trayTop;
-  const yBot = layout.trayBottom;
+  const { x: cx, y: cy } = layout.trayCenter;
+  const rx = layout.trayRadiusX;
+  const ry = layout.trayRadiusY;
 
-  const xTopL = cx - wTop / 2;
-  const xTopR = cx + wTop / 2;
-  const xBotL = cx - wBot / 2;
-  const xBotR = cx + wBot / 2;
-
-  // Tray shadow.
+  // Drop shadow under the round tray.
   ctx.save();
   ctx.fillStyle = SHADOW;
   ctx.filter = 'blur(18px)';
   ctx.beginPath();
-  ctx.moveTo(xTopL - 6, yTop + 10);
-  ctx.lineTo(xTopR + 6, yTop + 10);
-  ctx.lineTo(xBotR + 8, yBot + 14);
-  ctx.lineTo(xBotL - 8, yBot + 14);
-  ctx.closePath();
+  ctx.ellipse(cx, cy + 14, rx + 8, ry + 6, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 
-  // Tray surface (trapezoid suggesting perspective).
-  const grad = ctx.createLinearGradient(0, yTop, 0, yBot);
-  grad.addColorStop(0, '#2c1c12');
-  grad.addColorStop(0.5, TRAY_FILL);
-  grad.addColorStop(1, '#46291a');
+  // Tray surface — round (ellipse for perspective).
+  const grad = ctx.createLinearGradient(0, cy - ry, 0, cy + ry);
+  grad.addColorStop(0, TRAY_FILL_TOP);
+  grad.addColorStop(0.5, TRAY_FILL_MID);
+  grad.addColorStop(1, TRAY_FILL_BOTTOM);
   ctx.fillStyle = grad;
   ctx.beginPath();
-  ctx.moveTo(xTopL, yTop);
-  ctx.lineTo(xTopR, yTop);
-  ctx.lineTo(xBotR, yBot);
-  ctx.lineTo(xBotL, yBot);
-  ctx.closePath();
+  ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
   ctx.fill();
 
   // Rim.
@@ -125,12 +117,11 @@ export function drawTray(ctx: CanvasRenderingContext2D, layout: Layout): void {
   ctx.strokeStyle = TRAY_RIM;
   ctx.stroke();
 
-  // Highlight along centerline.
+  // Inner highlight ring (subtle ellipse highlight on the upper edge).
   ctx.beginPath();
-  ctx.moveTo(cx, yTop + 4);
-  ctx.lineTo(cx, yBot - 4);
-  ctx.strokeStyle = TRAY_HIGHLIGHT;
-  ctx.lineWidth = 1;
+  ctx.ellipse(cx, cy - 2, rx - 6, ry - 4, 0, Math.PI * 1.05, Math.PI * 1.95);
+  ctx.strokeStyle = 'rgba(255, 220, 170, 0.18)';
+  ctx.lineWidth = 1.2;
   ctx.stroke();
 }
 
@@ -214,6 +205,7 @@ function drawGlass(ctx: CanvasRenderingContext2D, glass: Glass, highlight: boole
 export function drawCapInFlight(
   ctx: CanvasRenderingContext2D,
   flight: FlightAnimation,
+  sprites: Sprites,
   now: number,
 ): void {
   const t = flightProgress(flight, now);
@@ -231,23 +223,53 @@ export function drawCapInFlight(
   ctx.fill();
   ctx.restore();
 
-  // The cap, lifted by arc * arcHeight in screen y.
   const drawY = pos.y - arc * flight.arcHeight;
+  const size = r * 2;
 
-  ctx.fillStyle = CAP_FACE;
+  if (sprites.capImageReady && sprites.capImage) {
+    ctx.drawImage(sprites.capImage, pos.x - r, drawY - r, size, size);
+  } else {
+    drawProceduralPrippsCap(ctx, pos.x, drawY, r);
+  }
+}
+
+/** Fallback if cap.png hasn't loaded yet — Pripps Blå styled crown cap. */
+function drawProceduralPrippsCap(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  r: number,
+): void {
+  // Crimped crown edge.
+  const teeth = 22;
   ctx.beginPath();
-  ctx.arc(pos.x, drawY, r, 0, Math.PI * 2);
+  for (let i = 0; i <= teeth * 2; i++) {
+    const a = (i / (teeth * 2)) * Math.PI * 2 - Math.PI / 2;
+    const radius = i % 2 === 0 ? r : r * 0.9;
+    const x = cx + Math.cos(a) * radius;
+    const y = cy + Math.sin(a) * radius;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.fillStyle = PRIPPS_BLUE_LIGHT;
   ctx.fill();
 
-  ctx.strokeStyle = CAP_EDGE;
-  ctx.lineWidth = 2;
+  // Inner disc.
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.82, 0, Math.PI * 2);
+  ctx.fillStyle = PRIPPS_BLUE;
+  ctx.fill();
+  ctx.strokeStyle = PRIPPS_BLUE_DARK;
+  ctx.lineWidth = 1;
   ctx.stroke();
 
-  // Subtle highlight.
-  ctx.fillStyle = 'rgba(255,255,255,0.35)';
-  ctx.beginPath();
-  ctx.arc(pos.x - r * 0.3, drawY - r * 0.3, r * 0.35, 0, Math.PI * 2);
-  ctx.fill();
+  // Wordmark "P".
+  ctx.fillStyle = PRIPPS_WHITE;
+  ctx.font = `bold ${Math.round(r * 0.95)}px -apple-system, system-ui, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('P', cx, cy + r * 0.05);
 }
 
 export function drawPlayerHud(
@@ -256,8 +278,9 @@ export function drawPlayerHud(
   losses: number,
   state: GameState,
 ): void {
-  const cx = layout.trayCenterX;
-  const y = Math.min(layout.height - 70, layout.trayBottom + 28);
+  const cx = layout.trayCenter.x;
+  const trayBottom = layout.trayCenter.y + layout.trayRadiusY;
+  const y = Math.min(layout.height - 70, trayBottom + 28);
   drawScoreDots(ctx, cx, y, losses);
 
   if (!state.gameOver && state.thrower === 'player') {

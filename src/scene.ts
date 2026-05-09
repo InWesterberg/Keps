@@ -3,53 +3,49 @@ import type { Glass, Layout } from './types';
 const GLASS_COUNT = 5;
 
 export function buildLayout(width: number, height: number): Layout {
-  const trayCenterX = width / 2;
-  const trayTop = Math.round(height * 0.26);
-  const trayBottom = Math.round(height * 0.84);
-  const trayLength = trayBottom - trayTop;
+  // Round tray rendered as a perspective ellipse (rx > ry, looking from a low angle).
+  const trayCenter = { x: width / 2, y: Math.round(height * 0.55) };
+  const trayRadiusX = Math.min(width * 0.42, 200);
+  const trayRadiusY = trayRadiusX * 0.55;
 
-  // Perspective taper: tray narrower at top (away from viewer), wider at bottom.
-  const trayWidthBottom = Math.min(width * 0.78, 360);
-  const trayWidthTop = trayWidthBottom * 0.62;
+  // Glasses cluster tightly along the centerline of the tray.
+  // Total cluster height ≈ 60% of the tray's vertical diameter (much tighter than before).
+  const clusterHalf = trayRadiusY * 0.6;
+  const step = (clusterHalf * 2) / (GLASS_COUNT - 1);
 
-  const marginY = Math.max(36, trayLength * 0.08);
-  const usableLength = trayLength - marginY * 2;
-  const step = usableLength / (GLASS_COUNT - 1);
-
-  // Glass radius scales by perspective: bigger near player (high index in screen y), smaller far away.
-  const baseRadiusNear = Math.min(width * 0.06, 30);
-  const baseRadiusFar = baseRadiusNear * 0.62;
+  // Glass radius (perspective): bigger near player, smaller toward opponent.
+  // Smaller absolute size now since glasses sit closer together.
+  const baseRadiusNear = Math.min(width * 0.045, 22);
+  const baseRadiusFar = baseRadiusNear * 0.7;
 
   const glasses: Glass[] = [];
   for (let i = 0; i < GLASS_COUNT; i++) {
     // i = 0 closest to player (largest, lowest on screen = high y)
     const t = i / (GLASS_COUNT - 1); // 0 at player end, 1 at opponent end
-    const cy = trayBottom - marginY - i * step;
+    const cy = trayCenter.y + clusterHalf - i * step;
     const radius = baseRadiusNear * (1 - t) + baseRadiusFar * t;
     glasses.push({
       index: i,
-      center: { x: trayCenterX, y: cy },
+      center: { x: trayCenter.x, y: cy },
       mouthRadius: radius,
     });
   }
 
   const opponentImageRadius = Math.min(width * 0.18, height * 0.09, 80);
   const opponentImageCenter = {
-    x: trayCenterX,
-    y: Math.max(opponentImageRadius + 24, trayTop - opponentImageRadius - 18),
+    x: trayCenter.x,
+    y: Math.max(opponentImageRadius + 28, trayCenter.y - trayRadiusY - opponentImageRadius - 24),
   };
 
   return {
     width,
     height,
-    trayTop,
-    trayBottom,
-    trayCenterX,
-    trayWidthTop,
-    trayWidthBottom,
+    trayCenter,
+    trayRadiusX,
+    trayRadiusY,
     glasses,
-    playerLaunch: { x: trayCenterX, y: height + 30 },
-    opponentLaunch: { x: trayCenterX, y: trayTop - 60 },
+    playerLaunch: { x: trayCenter.x, y: height + 30 },
+    opponentLaunch: { x: trayCenter.x, y: trayCenter.y - trayRadiusY - 60 },
     opponentImageCenter,
     opponentImageRadius,
   };

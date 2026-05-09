@@ -84,7 +84,7 @@ export function buildFlight(layout: Layout, thrower: Side, landing: Vec2, now: n
     durationMs,
     thrower,
     arcHeight,
-    capRadius: 11,
+    capRadius: 18,
   };
 }
 

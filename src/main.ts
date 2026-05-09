@@ -1,3 +1,4 @@
+import { playApplause, playFanfare, playSplash, unlockAudio } from './audio';
 import { createGame, resolveThrow, targetIndexFor } from './game';
 import {
   aiLanding,
@@ -128,6 +129,7 @@ function attachSwipeInput(runtime: Runtime): void {
   let start: { x: number; y: number; t: number } | null = null;
 
   runtime.canvas.addEventListener('pointerdown', (e) => {
+    unlockAudio();
     if (runtime.phase !== 'awaitingPlayer') return;
     runtime.canvas.setPointerCapture(e.pointerId);
     start = { x: e.clientX, y: e.clientY, t: performance.now() };
@@ -204,11 +206,18 @@ function finishFlight(runtime: Runtime): void {
   const hit = runtime.pendingFlightHit;
   runtime.flight = null;
 
+  if (hit) playSplash();
+
   const event = resolveThrow(runtime.state, hit);
+
+  if (event.kind === 'roundLost' && event.winner === 'player') {
+    playApplause();
+  }
 
   if (runtime.state.gameOver) {
     runtime.phase = 'gameOver';
     runtime.restartBtn.hidden = false;
+    if (runtime.state.winner === 'player') playFanfare();
     setStatus(
       runtime,
       runtime.state.winner === 'player' ? 'Match slut — du vann! 🏆' : 'Match slut — du förlorade',

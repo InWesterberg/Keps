@@ -55,7 +55,7 @@ function init(): void {
   img.onerror = () => {
     // Fallback handled in renderer.
   };
-  img.src = '/opponent.jpg';
+  img.src = `${import.meta.env.BASE_URL}opponent.jpg`;
 
   const runtime: Runtime = {
     canvas,
